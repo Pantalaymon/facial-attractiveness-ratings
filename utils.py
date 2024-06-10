@@ -7,6 +7,7 @@ import random
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
 from torchvision import models, transforms
 import matplotlib.pyplot as plt
 
@@ -16,6 +17,14 @@ def standardize_path(cell):
     # That way later we can provide whatever root path we want for the dataset
     path = Path(cell)
     return "/".join(path.parts[-3:])
+
+def extract_gender_ethnicity(row):
+    try :
+        path = Path(row["path"])
+        gender, ethnicity = path.parts[-3: -1]
+    except TypeError:
+        gender, ethnicity = None, None
+    return gender, ethnicity
 
 def is_image_loadable(image_path):
     try:
@@ -52,18 +61,19 @@ def load_images(df, image_dir, num_images=5, gender=None, ethnicity=None):
     
     images = []
     real_scores = []
+    
     for idx, row in selected_df.iterrows():
         img_path = os.path.join(image_dir, row['path'])
 
         image = Image.open(img_path).convert('RGB')
         images.append(image)
-        real_scores.append(row['mean'])
+        real_scores.append(row['rating'])
     
     # Drop the temporary columns
     #df.drop(columns=['gender', 'ethnicity'], inplace=True)
 
     
-    return images, real_scores
+    return selected_df.index, images, real_scores
 
 def display_images(images, real_scores, predicted_scores=None):
     max_per_row = 5
@@ -96,32 +106,20 @@ def display_images(images, real_scores, predicted_scores=None):
 def load_model(device):
     model = models.mobilenet_v2(pretrained=True)
     
-    # Modify the classifier for regression
-    model.classifier[1] = nn.Linear(model.classifier[1].in_features, 1)
+    # Modify the classifier for regression with sigmoid activation
+    model.classifier[1] = nn.Sequential(
+        nn.Linear(model.classifier[1].in_features, 1)
+    )
+    
     # Move the model to the GPU if available
-
     model = model.to(device)
     return model
 
-def load_checkpoint(model, optimizer, path='models/best_model.pth'):
-    checkpoint = torch.load(path)
+def load_checkpoint(model, optimizer, path='models/best_model.pth', map_location='cpu'):
+    checkpoint = torch.load(path, map_location=torch.device(map_location))
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     start_epoch = checkpoint['epoch'] + 1
     best_val_loss = checkpoint['best_val_loss']
     return model, optimizer, start_epoch, best_val_loss
-
-def predict_attractiveness(model, images, device='cuda'):
-    model.eval()
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
-    images_tensor = torch.stack([transform(image) for image in images]).to(device)
-    
-    with torch.no_grad():
-        outputs = model(images_tensor)
-        scores = outputs.squeeze().cpu().numpy()
-    
-    return scores
 
