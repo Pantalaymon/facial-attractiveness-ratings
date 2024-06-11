@@ -10,7 +10,6 @@ import utils
 
 app = Flask(__name__)
 
-
 # Load rescaler
 scaler = joblib.load('models/min_max_scaler.pkl')
 
@@ -20,7 +19,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = utils.load_model(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 checkpoint_path = 'models/best_model.pth'
-model, optimizer, start_epoch, best_val_loss = utils.load_checkpoint(model, optimizer, path=checkpoint_path)
+model, optimizer, start_epoch, best_val_loss = utils.load_checkpoint(model, optimizer, device, path=checkpoint_path)
 
 model.eval()
 
@@ -53,8 +52,7 @@ def predict():
         tensor = transform_image(img_bytes)
         with torch.no_grad():
             output = model(tensor)
-            #output = scaler.transform(output.reshape(-1, 1))
-            rating = round(output.item(), 1)
+            rating = round(output.item(), 1)  # Round to the first decimal place
         return jsonify({'rating': rating, 'image_url': img_path})
 
 # Route for serving uploaded images

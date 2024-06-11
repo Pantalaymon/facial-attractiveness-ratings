@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial Attractiveness Rating</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Facial Attractiveness Rating</h1>
+        <p class="description">Welcome to our Facial Attractiveness Rating project! Upload a photo to get an attractiveness score based on our trained model.</p>
+        <div class="guidelines">
+            <h2>Guidelines:</h2>
+            <ul>
+                <li>Ensure the image is clear and the face is fully visible.</li>
+                <li>Supported formats: JPG, PNG.</li>
+                <li>Maximum file size: 5MB.</li>
+            </ul>
+        </div>
+        <form id="upload-form" enctype="multipart/form-data">
+            <input type="file" name="file" id="file-input" accept="image/*">
+            <label for="file-input">Choose a file</label>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="result"></div>
+        <div id="uploaded-image"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('file-input');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('/predict', {
+                method: 'POST',
+                body: formData,
+            });
+            const result = await response.json();
+            document.getElementById('result').innerText = `Rating: ${result.rating}`;
+            const img = document.createElement('img');
+            img.src = `/${result.image_url}`;
+            img.width = 224;
+            document.getElementById('uploaded-image').innerHTML = '';
+            document.getElementById('uploaded-image').appendChild(img);
+        });
+    </script>
+</body>
+</html>
